@@ -10,6 +10,7 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 	Sensor *sensor_ISOUSC = new Sensor();
 	Sensor *sensor_PAPP = new Sensor();
 	Sensor *sensor_BASE = new Sensor();
+	Sensor *sensor_ERRORS = new Sensor();
 	TextSensor *sensor_ADCO = new TextSensor();
 
 	bool enable = true;
@@ -17,8 +18,10 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 	float isousc = 0.0;
 	float papp = 0.0;
 	float base = 0.0;
+	unsigned long errors = 0;
 	String adco = "";
-	
+	unsigned char chksum = 0;
+	unsigned int len = 0;
   
 	static MyTicComponent* instance(UARTComponent *parent)
 	{
@@ -38,6 +41,7 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 	
 	void update() override {
 		String buff = "";
+		chksum = 0;
 		while (available()>0)
 		{
 			char c = read();
@@ -71,29 +75,32 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 	
 	void processString(String str) {
 		//ESP_LOGD("tic_received", str.c_str());
-		
-		ESP_LOGD("tic", "tic_received %s", str.c_str());
-		char separator = ' ';
-		if (str.indexOf(separator) > -1)
-		{
-			String etiquette = str.substring(0, str.indexOf(separator));
-			String value = str.substring(str.indexOf(separator) + 1);
-			if (value.indexOf(separator) > -1)
-			{
-				value = value.substring(0, value.indexOf(separator));
-				processCommand(etiquette, value);
+		chksum = 0;
+		len = str.length();
+		for(int i = 0; i < len - 2; i++) { // -2 car je retire le separateur et le checksum qui ne compte pas dans le calcul du checksul
+			chksum += str[i];
+		}
+		chksum = ( chksum & 0x3F ) + 0x20;
+		if ( chksum == str[len-1] ) {
+			char separator = ' ';
+			if (str.indexOf(separator) > -1) {
+				String etiquette = str.substring(0, str.indexOf(separator));
+				String value = str.substring(str.indexOf(separator) + 1);
+				if (value.indexOf(separator) > -1) {
+					value = value.substring(0, value.indexOf(separator));
+					processCommand(etiquette, value);
+				}
 			}
+		} else {
+			errors++;
+			ESP_LOGD("tic", "WRONG CHECKSUM, received: '%s', calculated checksum : '%c'", str.c_str(), chksum);
+			sensor_ERRORS->publish_state(errors);
 		}
 	}
   
 	void processCommand(String etiquette, String value)
 	{
-		//ESP_LOGD("tic_etiquette", etiquette.c_str());
-		//ESP_LOGD("tic_value", value.c_str());
-		//ESP_LOGD(etiquette.c_str(), value.c_str());
-		
-		ESP_LOGD("tic", "tic_etiquette %s", etiquette.c_str());
-		ESP_LOGD("tic", "tic_value %s", value.c_str());	  
+		ESP_LOGD("tic", "tic %s : %s ", etiquette.c_str(), value.c_str());
 		if (etiquette == "ADCO") // adresse
 		{
 			if (adco != value)
@@ -106,7 +113,7 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 		{
 			if (base != value.toFloat())
 			{	
-				sensor_BASE->publish_state(value.toFloat() / 1000.0);
+				sensor_BASE->publish_state(value.toFloat());
 				base = value.toFloat();
 			}
 		}

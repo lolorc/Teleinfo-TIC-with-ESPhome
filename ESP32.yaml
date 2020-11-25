@@ -88,7 +88,7 @@ sensor:
   - platform: custom
     lambda: |-
       auto my_tic = ${init}
-      return {my_tic->sensor_IINST, my_tic->sensor_ISOUSC, my_tic->sensor_PAPP, my_tic->sensor_BASE};
+      return {my_tic->sensor_IINST, my_tic->sensor_ISOUSC, my_tic->sensor_PAPP, my_tic->sensor_BASE, my_tic->sensor_ERRORS};
     sensors:
       - name: "Intensite"
         unit_of_measurement: A
@@ -102,10 +102,12 @@ sensor:
         unit_of_measurement: W
         accuracy_decimals: 0
         icon: mdi:power-plug
-      - name: "Index"
+      - name: "Base"
         unit_of_measurement: kWh
         accuracy_decimals: 0
         icon: mdi:home-analytics
+      - name: "Errors"
+        accuracy_decimals: 0
 
 # déclaration du sensor texte, c'est juste l'identifiant du compteur
 text_sensor:
