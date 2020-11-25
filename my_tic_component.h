@@ -67,7 +67,8 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 		
 		if (enable && (buff != ""))
 		{
-			processString(buff);
+			if (buff.length() >= 7) // 4 (plus courte etiquette) + 2 (separateurs) + 1 (valeur)
+				processString(buff);
 			//ESP_LOGI("Buffer", "Buffer Size :  %d", buff.length());
 			buff = "";
 		}
@@ -77,7 +78,7 @@ class MyTicComponent : public PollingComponent, public UARTDevice, public Switch
 		//ESP_LOGD("tic_received", str.c_str());
 		chksum = 0;
 		len = str.length();
-		for(int i = 0; i < len - 2; i++) { // -2 car je retire le separateur et le checksum qui ne compte pas dans le calcul du checksul
+		for(int i = 0; i < len - 2; i++) { // -2 car je retire le separateur et le checksum qui ne comptent pas dans le calcul du checksum
 			chksum += str[i];
 		}
 		chksum = ( chksum & 0x3F ) + 0x20;
